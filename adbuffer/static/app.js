@@ -411,6 +411,9 @@ async function poll() {
   try {
     const pts = playerPts();
     const st = await api('/api/status' + (pts != null ? `?around=${pts.toFixed(1)}` : ''));
+    // a newer UI was installed: reload, unless a video is playing (picked up when it stops)
+    if (S.app != null && st.app !== S.app && (video.paused || !S.hlsFor)) return location.reload();
+    S.app = S.app ?? st.app;
     if (S.theme !== null && st.theme !== S.theme) $('#theme').href = '/theme.css?v=' + st.theme;
     S.theme = st.theme;
     // a session started elsewhere (Brave passthrough, CLI) brings the player forward

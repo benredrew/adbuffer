@@ -26,6 +26,11 @@ THEME_DEFAULTS = {
 }
 
 
+def app_version() -> int:
+    """Changes whenever the UI files change, so open windows know to reload."""
+    return max(int(os.stat(os.path.join(STATIC, n)).st_mtime) for n in os.listdir(STATIC))
+
+
 def theme_mtime() -> float:
     try:
         return os.stat(THEME).st_mtime
@@ -82,6 +87,7 @@ def make_app(sessions: Sessions, library: Library, reporter: Reporter) -> web.Ap
         return web.json_response({
             "session": s.status(float(around) if around else None) if s else None,
             "theme": theme_mtime(),
+            "app": app_version(),
             "detector": {"mode": c.name, "model": getattr(c, "model", None), "last": c.last},
             "reports": reporter.summary(),
         })
