@@ -8,6 +8,7 @@ import subprocess
 import threading
 import time
 
+from .sources import find_streams
 from .state import Segment, State
 
 log = logging.getLogger("ingest")
@@ -78,7 +79,14 @@ def start_ingest(source: str, buf_dir: str, height: int) -> tuple[list[subproces
     else:
         # Page URLs are resolved to their media URLs, which ffmpeg reads directly. (Piping
         # `yt-dlp -o -` breaks whenever a site only has separate video and audio streams.)
-        fmts, live = resolve(source, height)
+        try:
+            fmts, live = resolve(source, height)
+        except RuntimeError as e:
+            # a page yt-dlp doesn't know: look for a stream in it and its embedded frames
+            fmts, live = find_streams(source)[:1], True
+            if not fmts:
+                raise RuntimeError(f"{e}; no stream found on the page either") from e
+            log.info("playing %s from page %s", fmts[0]["url"], source)
         for f in fmts:
             ff += _input_args(f, vod=not live)  # live streams pace themselves
         if len(fmts) > 1:

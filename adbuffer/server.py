@@ -12,6 +12,7 @@ from aiohttp import web
 
 from .library import Library, lookup_title, search
 from .reports import KINDS, Reporter
+from .sources import SourceCache
 from .session import Sessions
 
 log = logging.getLogger("server")
@@ -60,6 +61,8 @@ def open_in_browser(url: str):
 
 
 def make_app(sessions: Sessions, library: Library, reporter: Reporter) -> web.Application:
+    source_cache = SourceCache()
+
     async def index(_):
         # versioned asset URLs: a plain reload doesn't revalidate scripts and stylesheets
         with open(os.path.join(STATIC, "index.html")) as f:
@@ -132,7 +135,7 @@ def make_app(sessions: Sessions, library: Library, reporter: Reporter) -> web.Ap
 
     async def remove(request):
         body = await request.json()
-        if body.get("kind") not in ("history", "bookmarks"):
+        if body.get("kind") not in ("history", "bookmarks", "sources"):
             raise web.HTTPBadRequest()
         library.remove(body["kind"], body["url"])
         return web.json_response({})
@@ -153,6 +156,19 @@ def make_app(sessions: Sessions, library: Library, reporter: Reporter) -> web.Ap
             raise web.HTTPBadRequest(text="unknown kind")
         job = await asyncio.to_thread(reporter.file, s, float(body["stream_time"]), body["kind"], body.get("note", "")[:500])
         return web.json_response({"id": job["id"]})
+
+    async def add_source(request):
+        body = await request.json()
+        url = normalize_url(body.get("url", ""))
+        if not url or os.path.exists(url):
+            raise web.HTTPBadRequest(text="not a URL")
+        library.add_source(url, body.get("name", "").strip())
+        return web.json_response({"url": url})
+
+    async def source_items(request):
+        sources = library.snapshot()["sources"]
+        listings = await asyncio.to_thread(source_cache.listings, sources, request.query.get("refresh") == "1")
+        return web.json_response(listings)
 
     async def hls(request):
         s = sessions.current
@@ -189,6 +205,8 @@ def make_app(sessions: Sessions, library: Library, reporter: Reporter) -> web.Ap
     app.router.add_post("/api/remove", remove)
     app.router.add_post("/api/open", open_url)
     app.router.add_post("/api/report", report)
+    app.router.add_post("/api/sources", add_source)
+    app.router.add_get("/api/source-items", source_items)
     app.router.add_get("/hls/{sid}/{name}", hls)
     app.router.add_static("/static", STATIC)
     return app

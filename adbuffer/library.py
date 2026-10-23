@@ -21,6 +21,7 @@ class Library:
             self.data = {}
         self.data.setdefault("history", [])
         self.data.setdefault("bookmarks", [])
+        self.data.setdefault("sources", [])
 
     def _save(self):
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
@@ -58,6 +59,12 @@ class Library:
                 added = True
             self._save()
             return added
+
+    def add_source(self, url: str, name: str):
+        with self.lock:
+            self.data["sources"] = [s for s in self.data["sources"] if s["url"] != url]
+            self.data["sources"].append({"url": url, "name": name, "ts": time.time()})
+            self._save()
 
     def remove(self, kind: str, url: str):
         with self.lock:

@@ -28,7 +28,8 @@
     <div class="sections">
       <button data-section="bookmarks">Bookmarks</button>
       <button data-section="history">History</button>
-      <span class="hint">Tab switches</span>
+      <button data-section="sources">Sources</button>
+      <span class="hint">Tab switches · n adds a source</span>
     </div>
     <ol id="home-list" class="list"></ol>
   </section>
@@ -72,6 +73,16 @@
 </footer>
 <div id="toast"></div>
 
+<div id="add-source" class="modal" hidden>
+  <div class="help-card">
+    <h2>Add a source</h2>
+    <p class="hint">A page that lists or embeds streams. Its games and streams show up under Results.</p>
+    <input id="source-url" class="field" placeholder="URL" autocomplete="off" spellcheck="false">
+    <input id="source-name" class="field" placeholder="Name (optional)" autocomplete="off" spellcheck="false">
+    <p class="hint">Tab next field · ↵ save · Esc cancel</p>
+  </div>
+</div>
+
 <div id="report" class="modal" hidden>
   <div class="help-card">
     <h2>Report ad detection at <span id="report-at"></span></h2>
@@ -102,7 +113,9 @@
       <dt>Home End</dt><dd>Oldest buffered point / back to live</dd>
       <dt>Esc</dt><dd>Leave the player</dd>
       <dt>1 2 3</dt><dd>Home / Results / Player</dd>
-      <dt>Tab</dt><dd>Bookmarks ⇄ History</dd>
+      <dt>Tab</dt><dd>Bookmarks → History → Sources</dd>
+      <dt>n</dt><dd>Add a source (a page that lists or embeds streams)</dd>
+      <dt>R</dt><dd>In Results: refresh your sources now</dd>
       <dt>a</dt><dd>Bookmark / unbookmark</dd>
       <dt>d</dt><dd>Remove from list</dd>
       <dt>y</dt><dd>Copy URL</dd>

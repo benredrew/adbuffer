@@ -7,11 +7,12 @@ const omni = $('#omni'), video = $('#video');
 const S = {
   view: 'home',
   section: localGet('section') || 'bookmarks',
-  lib: { history: [], bookmarks: [] },
+  lib: { history: [], bookmarks: [], sources: [] },
   results: [], query: '',
   sel: { home: 0, results: 0 },
   session: undefined, hls: null, hlsFor: null, theme: null,
   rows: [], rowEls: [], seenReports: new Set(), reportsPrimed: false, report: null,
+  listings: [], filterSource: null, loadingSources: false,
 };
 
 function localGet(k) { try { return localStorage.getItem('adbuffer.' + k); } catch { return null; } }
@@ -57,20 +58,43 @@ function setView(v, push = true) {
 }
 window.addEventListener('popstate', () => setView(location.hash.slice(1), false));
 
+const SECTIONS = ['bookmarks', 'history', 'sources'];
+
+// Streams listed from the viewer's own sources, optionally narrowed to one source.
+function sourceItems() {
+  const all = S.listings.flatMap((l) => l.items);
+  return S.filterSource ? all.filter((it) => it.source === S.filterSource) : all;
+}
+function matches(it, q) {
+  const hay = `${it.title} ${it.channel}`.toLowerCase();
+  return q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
+}
+
 function items(view = S.view) {
-  if (view === 'home') return S.lib[S.section] || [];
-  if (view === 'results') return S.results;
+  if (view === 'home') {
+    if (S.section === 'sources') return S.lib.sources.map((x) => ({ url: x.url, title: x.name || host(x.url), ts: x.ts, isSource: true }));
+    return S.lib[S.section] || [];
+  }
+  if (view === 'results') return S.query ? [...sourceItems().filter((it) => matches(it, S.query)), ...S.results] : sourceItems();
   return [];
 }
 function selected() { const l = items(); return l[S.sel[S.view]]; }
 
 function render() {
   document.querySelectorAll('.sections button').forEach((b) => b.classList.toggle('active', b.dataset.section === S.section));
-  renderList('home', $('#home-list'), S.section === 'bookmarks'
-    ? 'No bookmarks yet. Press a on anything to keep it here.'
-    : 'Nothing watched yet. Press / to search.');
-  $('#results-title').textContent = S.query ? `YouTube results for “${S.query}”` : '';
-  renderList('results', $('#results-list'), S.query ? 'No results.' : 'Press / and type to search.');
+  renderList('home', $('#home-list'), {
+    bookmarks: 'No bookmarks yet. Press a on anything to keep it here.',
+    history: 'Nothing watched yet. Press / to search.',
+    sources: 'No sources yet. Press n to add a page that lists or embeds streams.',
+  }[S.section]);
+  const failed = S.listings.filter((l) => l.error && (!S.filterSource || l.source === S.filterSource));
+  const named = S.filterSource && (S.lib.sources.find((x) => x.url === S.filterSource)?.name || host(S.filterSource));
+  $('#results-title').textContent = (S.query
+    ? `Results for “${S.query}”: your sources first, then YouTube`
+    : `Live from ${named || 'your sources'}${S.loadingSources ? ' (checking…)' : ''}`)
+    + failed.map((l) => ` · ${host(l.source)}: ${l.error}`).join('');
+  renderList('results', $('#results-list'), S.query ? 'No results.'
+    : S.lib.sources.length ? 'Nothing listed right now. R checks again.' : 'No sources yet. On Home, Tab to Sources and press n to add one.');
 }
 
 function renderList(view, ol, emptyMsg) {
@@ -108,8 +132,8 @@ function renderKeys() {
   const common = [k('/', 'search'), k('j l', 'back/fwd'), k('?', 'help')];
   const list = [k('i k', 'move'), k('↵', 'watch clean'), k('b', 'open in Brave'), k('a', 'bookmark')];
   const by = {
-    home: [...list, k('d', 'remove'), k('Tab', 'bookmarks/history')],
-    results: list,
+    home: [...list, k('d', 'remove'), k('n', 'add source'), k('Tab', 'section')],
+    results: [...list, k('R', 'refresh sources'), k('n', 'add source')],
     player: [k('Space', 'pause'), k('j l ← →', 'seek'), k('i k', 'sentence'), k('End', 'live'), k('r', 'report ad'),
       k('f', 'fullscreen'), k('m', 'mute'), k('t', 'transcript'), k('s', 'stop'), k('Esc', 'back')],
   };
@@ -121,9 +145,42 @@ function renderKeys() {
 
 async function loadLibrary() { S.lib = await api('/api/library'); render(); }
 
+let sourcesTimer;
+async function loadSources(refresh = false) {
+  clearTimeout(sourcesTimer);
+  if (S.lib.sources.length) {
+    S.loadingSources = true; render();
+    try { S.listings = await api('/api/source-items' + (refresh ? '?refresh=1' : '')); }
+    catch (e) { toast('Checking sources failed: ' + e.message.slice(0, 80)); }
+    S.loadingSources = false; render();
+  }
+  // keep polling while Results is on screen
+  sourcesTimer = setTimeout(() => S.view === 'results' && loadSources(), 60000);
+}
+
+function openSource(src) {
+  S.filterSource = src.url; S.query = ''; S.sel.results = 0;
+  setView('results'); loadSources();
+}
+
+const addBox = $('#add-source'), sourceUrl = $('#source-url'), sourceName = $('#source-name');
+function openAddSource() { sourceUrl.value = ''; sourceName.value = ''; addBox.hidden = false; sourceUrl.focus(); }
+function closeAddSource() { addBox.hidden = true; document.activeElement.blur(); }
+async function saveSource() {
+  const url = sourceUrl.value.trim(); if (!url) return;
+  closeAddSource();
+  try {
+    await api('/api/sources', { url, name: sourceName.value.trim() });
+    await loadLibrary();
+    toast('Source added');
+    S.section = 'sources'; localSet('section', S.section);
+    openSource({ url: S.lib.sources.at(-1).url });
+  } catch (e) { toast('Could not add: ' + e.message.slice(0, 80)); }
+}
+
 async function runSearch(q) {
-  S.query = q; S.results = []; S.sel.results = 0; setView('results');
-  $('#results-title').textContent = `Searching YouTube for “${q}”…`;
+  S.query = q; S.results = []; S.sel.results = 0; S.filterSource = null; setView('results');
+  $('#results-title').textContent = `Searching for “${q}”…`;
   try { S.results = await api('/api/search?q=' + encodeURIComponent(q)); }
   catch (e) { toast('Search failed: ' + e.message.slice(0, 80)); }
   render();
@@ -400,6 +457,11 @@ $('#report-btn').addEventListener('click', (e) => { e.currentTarget.blur(); open
 document.addEventListener('keydown', (e) => {
   const help = $('#help');
   if (!help.hidden) { if (e.key === 'Escape' || e.key === '?') { help.hidden = true; e.preventDefault(); } return; }
+  if (!addBox.hidden) {
+    if (e.key === 'Escape') { closeAddSource(); e.preventDefault(); }
+    else if (e.key === 'Enter') { saveSource(); e.preventDefault(); }
+    return;
+  }
   if (!reportBox.hidden) {
     const kinds = { 1: 'missed', 2: 'false', 3: 'boundary' };
     if (e.key === 'Escape') closeReport();
@@ -426,7 +488,8 @@ document.addEventListener('keydown', (e) => {
     '/': () => { omni.focus(); omni.select(); },
     o: () => { omni.focus(); omni.select(); },
     '?': () => { help.hidden = false; },
-    1: () => setView('home'), 2: () => setView('results'), 3: () => setView('player'),
+    1: () => setView('home'), 3: () => setView('player'),
+    2: () => { S.filterSource = null; setView('results'); loadSources(); },
     j: () => history.back(), l: () => history.forward(),
     b: () => it && openInBrave(it.url),
     a: () => toggleBookmark(it),
@@ -436,11 +499,13 @@ document.addEventListener('keydown', (e) => {
     i: () => move(-1), k: () => move(1), ArrowUp: () => move(-1), ArrowDown: () => move(1),
     I: () => move(-5), K: () => move(5), PageUp: () => move(-5), PageDown: () => move(5),
     g: () => move(-1e9), G: () => move(1e9), Home: () => move(-1e9), End: () => move(1e9),
-    Enter: () => it && watch(it),
+    Enter: () => it && (it.isSource ? openSource(it) : watch(it)),
+    n: openAddSource,
+    R: () => S.view === 'results' && loadSources(true),
     d: removeSelected, Delete: removeSelected,
     Tab: () => {
       if (S.view !== 'home') return setView('home');
-      S.section = S.section === 'bookmarks' ? 'history' : 'bookmarks'; localSet('section', S.section); render();
+      S.section = SECTIONS[(SECTIONS.indexOf(S.section) + 1) % SECTIONS.length]; localSet('section', S.section); render();
     },
   });
   else Object.assign(keys, {
@@ -474,5 +539,5 @@ document.querySelectorAll('.sections button').forEach((b) => b.addEventListener(
 
 setView(location.hash.slice(1) || 'home', false);
 history.replaceState(null, '', '#' + S.view);
-loadLibrary();
+loadLibrary().then(() => loadSources());
 poll();
