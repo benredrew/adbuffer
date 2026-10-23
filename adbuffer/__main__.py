@@ -50,6 +50,7 @@ def main():
     shutil.rmtree(WORK_ROOT, ignore_errors=True)  # segments left behind by a crashed run
     sessions = Sessions(lambda: Transcriber(args.whisper_model, args.device), classifier,
                         args.delay, args.ramp, args.height)
+    sessions.preload()  # load Whisper now so the first video doesn't wait for it
     if args.source:
         sessions.start(args.source)
 

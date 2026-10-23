@@ -11,7 +11,7 @@ const S = {
   results: [], query: '',
   sel: { home: 0, results: 0 },
   session: undefined, hls: null, hlsFor: null, theme: null,
-  rows: [], rowEls: [],
+  rows: [], rowEls: [], seenReports: new Set(), reportsPrimed: false, report: null,
 };
 
 function localGet(k) { try { return localStorage.getItem('adbuffer.' + k); } catch { return null; } }
@@ -26,9 +26,9 @@ async function api(path, body) {
 }
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, ms = 1800) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
 }
 
 const fmtDur = (s) => {
@@ -110,8 +110,8 @@ function renderKeys() {
   const by = {
     home: [...list, k('d', 'remove'), k('Tab', 'bookmarks/history')],
     results: list,
-    player: [k('Space', 'pause'), k('j l ← →', 'seek'), k('End', 'live'), k('f', 'fullscreen'), k('m', 'mute'),
-      k('t', 'transcript'), k('s', 'stop'), k('b', 'open in Brave'), k('Esc', 'back')],
+    player: [k('Space', 'pause'), k('j l ← →', 'seek'), k('i k', 'sentence'), k('End', 'live'), k('r', 'report ad'),
+      k('f', 'fullscreen'), k('m', 'mute'), k('t', 'transcript'), k('s', 'stop'), k('Esc', 'back')],
   };
   const tail = S.view === 'player' ? [k('/', 'search'), k('?', 'help')] : common;
   $('#keys').innerHTML = [...by[S.view], ...tail].join('');
@@ -195,17 +195,36 @@ function seekTo(t) {
   renderPosition();
 }
 const seekBy = (d) => seekTo(video.currentTime + d);
+function seekSentence(dir) {
+  const off = streamOffset(); if (off == null || !S.rows.length) return;
+  let i = S.nowRow;
+  if (dir < 0 && i >= 0 && playerPts() - S.rows[i].start > 1.5) dir = 0; // first press: back to this sentence's start
+  i = Math.max(0, Math.min(S.rows.length - 1, i + dir));
+  const t = S.rows[i].start - off + 0.15, r = seekable(); // land just inside the sentence, not on its edge
+  if (r && t > r[1] - 1) return toast('Next sentence is still being scanned for ads');
+  seekTo(t);
+}
 const goLive = () => { const r = seekable(); if (r) seekTo(r[1] - 6); };
 
 function attach(id) {
   resetPlayer(); S.hlsFor = id;
   const src = `/hls/${id}/live.m3u8`;
   if (window.Hls && Hls.isSupported()) {
-    S.hls = new Hls({ liveSyncDurationCount: 3, manifestLoadingMaxRetry: 30, levelLoadingMaxRetry: 30 });
+    // segments are released on a steady schedule with analysis already done, so a short
+    // live-edge cushion is enough and playback starts after the first segment
+    S.hls = new Hls({ liveSyncDurationCount: 1, manifestLoadingMaxRetry: 30, levelLoadingMaxRetry: 30 });
     S.hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal && S.hlsFor === id) setTimeout(() => attach(id), 2000); });
     S.hls.loadSource(src); S.hls.attachMedia(video);
   } else { video.src = src; }
   video.play().catch(() => {});
+}
+
+// The server's estimate jumps as analysis passes land; show it ticking down steadily instead.
+function countdown(s) {
+  const now = performance.now() / 1000, c = S.cd;
+  const shown = c && c.id === s.id ? Math.min(s.starts_in, c.value - (now - c.at)) : s.starts_in;
+  S.cd = { id: s.id, value: Math.max(1, shown), at: now };
+  return Math.ceil(S.cd.value);
 }
 
 function renderSession() {
@@ -220,13 +239,15 @@ function renderSession() {
   if (s.published_segments > 0 && S.hlsFor !== s.id) attach(s.id);
   if (s.failed) ov.innerHTML = '<div>Couldn’t read that source.</div><div class="hint">It may not be a video page. Press b to open it in Brave.</div>';
   else if (s.waiting_for_source) ov.innerHTML = '<div>Connecting to source…</div>';
-  else if (!s.published_segments) ov.innerHTML = `<div class="big">${Math.ceil(s.starts_in)}s</div><div>Buffering and scanning for ads</div>`;
+  else if (!s.published_segments) ov.innerHTML = `<div class="big">${countdown(s)}s</div><div>Scanning ahead for ads</div>`;
   else ov.innerHTML = '';
 
   $('#np-title').textContent = s.title;
   const parts = [
     s.ended ? 'Ended' : s.ingest_done ? 'Source finished, draining buffer' : 'Live',
-    `<b>${Math.round(s.buffered_seconds)}s</b> buffered`,
+    s.lead < s.target_lead
+      ? `lookahead <b>${Math.round(s.lead)}s</b> → ${Math.round(s.target_lead)}s${s.rate < 1 ? ` (playing at ${s.rate}×)` : ''}`
+      : `lookahead <b>${Math.round(s.lead)}s</b>`,
     `<b>${s.censored_segments * 2}s</b> softened`,
     host(s.source),
   ];
@@ -263,6 +284,10 @@ function renderPosition() {
     el.classList.toggle('now', i === now);
     el.classList.toggle('future', pts == null || S.rows[i].start > pts);
   });
+  if (now >= 0) {
+    const l = S.rows[now], p = Math.max(0, Math.min(1, (pts - l.start) / Math.max(0.5, l.end - l.start)));
+    S.rowEls[now].style.setProperty('--p', `${(p * 100).toFixed(1)}%`);
+  }
   if (now !== S.nowRow && now >= 0) S.rowEls[now].scrollIntoView({ block: 'center', behavior: 'smooth' });
   S.nowRow = now;
 
@@ -285,6 +310,9 @@ function renderPosition() {
     }));
   }
   const behind = r[1] - video.currentTime, live = !s.ended && behind < 12;
+  // a live stream builds its lookahead by playing slightly slow at the live edge
+  const want = s.rate < 1 && behind < 15 ? s.rate : 1;
+  if (Math.abs(video.playbackRate - want) > 0.001) video.playbackRate = want;
   const tm = $('#scrub-time');
   tm.classList.toggle('live', live);
   tm.textContent = s.ended ? `${fmtDur(video.currentTime - r[0])} / ${fmtDur(span)}` : live ? '● LIVE' : `−${fmtDur(behind)}`;
@@ -295,6 +323,28 @@ $('#scrub-track').addEventListener('click', (e) => {
   const box = e.currentTarget.getBoundingClientRect();
   seekTo(r[0] + (e.clientX - box.left) / box.width * (r[1] - r[0]));
 });
+
+function renderDetector(st) {
+  const d = st.detector, s = st.session, parts = [];
+  if (d.mode === 'claude') {
+    parts.push(d.last === 'claude'
+      ? `<span class="agent">◆ Claude judging</span> (${d.model})`
+      : '◇ Claude unavailable, using keyword rules');
+  } else {
+    parts.push('◇ Keyword rules, no agent');
+  }
+  if (s && s.sponsorblock) parts.push(`SponsorBlock: ${s.sponsorblock}`);
+  const a = st.reports.active;
+  if (a) parts.push(`<span class="agent">✎ Claude ${a.status === 'running' ? 'investigating' : 'queued:'} report at ${fmtDur(a.video_time)}</span>`);
+  $('#detector').innerHTML = parts.join('<span class="sep">·</span>');
+  for (const r of st.reports.recent) {
+    if (r.status !== 'done' && r.status !== 'failed') continue;
+    if (S.seenReports.has(r.id)) continue;
+    S.seenReports.add(r.id);
+    if (S.reportsPrimed) toast(`Report: ${r.summary}`, 8000);
+  }
+  S.reportsPrimed = true;
+}
 
 let pollTimer;
 async function poll() {
@@ -308,15 +358,56 @@ async function poll() {
     if (st.session && st.session.id !== S.session?.id && S.session !== undefined) setView('player');
     S.session = st.session;
     renderSession();
+    renderDetector(st);
   } catch {}
   pollTimer = setTimeout(poll, S.view === 'player' ? 1000 : 3000);
 }
+
+// ---------------------------------------------------------------- reports
+
+const reportBox = $('#report'), reportNote = $('#report-note');
+function openReport() {
+  const pts = playerPts();
+  if (pts == null) return toast('Nothing playing to report');
+  S.report = { pts, kind: null };
+  reportBox.querySelectorAll('li').forEach((li) => li.classList.remove('sel'));
+  reportNote.value = ''; reportNote.disabled = true;
+  $('#report-at').textContent = fmtDur(pts - S.session.origin);
+  reportBox.hidden = false;
+}
+function chooseReport(kind) {
+  S.report.kind = kind;
+  reportBox.querySelectorAll('li').forEach((li) => li.classList.toggle('sel', li.dataset.kind === kind));
+  reportNote.disabled = false; reportNote.focus();
+}
+async function sendReport() {
+  if (!S.report?.kind) return;
+  const { pts, kind } = S.report;
+  closeReport();
+  try {
+    await api('/api/report', { stream_time: pts, kind, note: reportNote.value.trim() });
+    toast('Sent — Claude is looking into it', 3000);
+  } catch (e) { toast('Report failed: ' + e.message.slice(0, 80)); }
+}
+function closeReport() { reportBox.hidden = true; reportNote.blur(); S.report = null; }
+reportBox.querySelectorAll('li').forEach((li) => li.addEventListener('click', () => chooseReport(li.dataset.kind)));
 
 // ---------------------------------------------------------------- keys
 
 document.addEventListener('keydown', (e) => {
   const help = $('#help');
   if (!help.hidden) { if (e.key === 'Escape' || e.key === '?') { help.hidden = true; e.preventDefault(); } return; }
+  if (!reportBox.hidden) {
+    const kinds = { 1: 'missed', 2: 'false', 3: 'boundary' };
+    if (e.key === 'Escape') closeReport();
+    else if (e.key === 'Enter') sendReport();
+    else if (e.target !== reportNote && kinds[e.key]) chooseReport(kinds[e.key]);
+    else if (e.target !== reportNote && ['ArrowUp', 'ArrowDown', 'i', 'k'].includes(e.key)) {
+      const order = ['missed', 'false', 'boundary'], cur = order.indexOf(S.report.kind);
+      chooseReport(order[Math.max(0, Math.min(2, cur + (['ArrowUp', 'i'].includes(e.key) ? -1 : 1)))]);
+    } else return;
+    e.preventDefault(); return;
+  }
 
   if (e.target === omni) {
     if (e.key === 'Enter') { e.preventDefault(); submitOmni(e.shiftKey); }
@@ -360,6 +451,8 @@ document.addEventListener('keydown', (e) => {
     s: async () => { await api('/api/stop', {}); resetPlayer(); toast('Stopped'); poll(); },
     Tab: () => setView('home'),
     Escape: () => history.back(),
+    i: () => seekSentence(-1), k: () => seekSentence(1),
+    r: openReport,
     j: () => seekBy(-10), l: () => seekBy(10),
     ArrowLeft: () => seekBy(e.shiftKey ? -30 : -5), ArrowRight: () => seekBy(e.shiftKey ? 30 : 5),
     Home: () => { const r = seekable(); if (r) seekTo(r[0]); },

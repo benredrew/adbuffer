@@ -15,7 +15,7 @@ from .state import Line, Span, State
 log = logging.getLogger("detect")
 
 CHUNK_SEGMENTS = 5          # analyse ~10 s of new audio per pass
-FIRST_CHUNK_SEGMENTS = 3    # ...but get the first pass done quickly so playback can start
+FIRST_CHUNK_SEGMENTS = 4    # ...but the first pass only needs enough for the first segment's lookahead
 CONTEXT_AUDIO = 20.0        # ...re-transcribed together with this much of the audio before it
 CONTEXT_SECONDS = 150       # how much transcript the classifier sees each pass
 MIN_GAP = 3.0               # silence/music stretches at least this long become explicit gap items

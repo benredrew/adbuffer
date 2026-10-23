@@ -10,7 +10,7 @@ import time
 import uuid
 
 from .detect import Analyzer, sentences
-from .ingest import VOD_READRATE, run_watcher, start_ingest
+from .ingest import VOD_READRATE, start_ingest, watch_segments
 from .publish import MIN_LEAD, Publisher
 from .sponsorblock import SponsorBlockWatcher, youtube_id
 from .state import State
@@ -33,21 +33,29 @@ class Session:
         self.buf_dir, self.out_dir = os.path.join(self.work, "buffer"), os.path.join(self.work, "out")
         os.makedirs(self.buf_dir)
         os.makedirs(self.out_dir)
-        try:
-            self.procs, self.state.live = start_ingest(source, self.buf_dir, height)
-        except Exception as e:
-            log.warning("can't open %s: %s", source, e)
-            self.procs = [subprocess.Popen(["false"])]  # an ingest that exits at once marks the session failed
+        self.procs: list[subprocess.Popen] = []
         self.threads = [
-            run_watcher(self.state, self.buf_dir, self.procs[-1]),
+            threading.Thread(target=self._ingest, args=(source, height), name="ingest", daemon=True),
             Analyzer(self.state, transcriber, classifier),
             Publisher(self.state, self.buf_dir, self.out_dir, delay, ramp, height),
         ]
         if vid := youtube_id(source):
             self.threads.append(SponsorBlockWatcher(self.state, vid))
-        for t in self.threads[1:]:
+        for t in self.threads:
             t.start()
         log.info("session %s started: %s", self.id, source)
+
+    def _ingest(self, source: str, height: int):
+        """Resolve the source (yt-dlp can take a few seconds) and run ffmpeg, off the request path."""
+        try:
+            self.procs, self.state.live = start_ingest(source, self.buf_dir, height)
+        except Exception as e:
+            log.warning("can't open %s: %s", source, e)
+            self.procs = [subprocess.Popen(["false"])]  # an ingest that exits at once marks the session failed
+        if self.state.stopping:
+            for p in self.procs:
+                p.terminate()
+        watch_segments(self.state, self.buf_dir, self.procs[-1])
 
     def stop(self):
         with self.state.changed:
@@ -97,7 +105,7 @@ class Session:
         lookahead, at the ingest speed, plus a few seconds of transcription. Caller holds the lock."""
         st = self.state
         if not st.segments:
-            return MIN_LEAD + 6.0
+            return MIN_LEAD + 10.0  # resolving the source and the first analysis pass
         need = st.segments[0].end + MIN_LEAD - st.analyzed_until
         return max(1.0, max(0.0, need) / (1.0 if st.live else VOD_READRATE) + 3.0)
 
@@ -133,13 +141,22 @@ class Sessions:
         self._make_transcriber, self.classifier = make_transcriber, classifier
         self.delay, self.ramp, self.height = delay, ramp, height
         self._transcriber = None
+        self._load_lock = threading.Lock()
         self.current: Session | None = None
         self.lock = threading.Lock()
 
+    def preload(self):
+        threading.Thread(target=self._load, name="whisper-load", daemon=True).start()
+
+    def _load(self):
+        with self._load_lock:
+            if self._transcriber is None:
+                self._transcriber = self._make_transcriber()  # kept for the daemon's life
+        return self._transcriber
+
     def start(self, source: str, title: str = "") -> Session:
         with self.lock:
-            if self._transcriber is None:
-                self._transcriber = self._make_transcriber()  # loaded lazily, kept for the daemon's life
+            self._load()
             old, self.current = self.current, None
             if old:
                 old.stop()

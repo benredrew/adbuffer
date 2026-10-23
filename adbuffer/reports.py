@@ -124,9 +124,8 @@ class Reporter(threading.Thread):
         report["softened_intervals"] = st.ad_intervals(merge_gap=5)  # takes the lock itself
         with open(os.path.join(d, "report.json"), "w") as f:
             json.dump(report, f, indent=1)
-        grab_frames(segs, pts, os.path.join(d, "frames"))
 
-        job = {"id": rid, "dir": d, "kind": kind, "video_time": pts - origin, "title": session.title,
+        job = {"id": rid, "dir": d, "segs": segs, "pts": pts, "kind": kind, "video_time": pts - origin, "title": session.title,
                "status": "queued", "summary": "", "created": time.time()}
         with self.lock:
             self.jobs.append(job)
@@ -144,6 +143,7 @@ class Reporter(threading.Thread):
                 self._finish(job, "failed", "Claude Code (`claude`) isn't installed or on PATH.")
                 continue
             job["status"] = "running"
+            grab_frames(job.pop("segs"), job["pts"], os.path.join(job["dir"], "frames"))
             rev_before = git_rev()
             notify("adbuffer", f"Claude is looking into your report at {fmt_t(job['video_time'])}")
             out_path = os.path.join(job["dir"], "claude-output.txt")
@@ -188,7 +188,8 @@ def grab_frames(segs: list[tuple[float, float, str]], pts: float, out_dir: str):
             continue
         subprocess.run(
             ["ffmpeg", "-nostdin", "-v", "error", "-y", "-ss", f"{t - seg[0]:.3f}", "-i", seg[2],
-             "-frames:v", "1", "-vf", "scale=480:-2", os.path.join(out_dir, f"frame_{rel:+03d}.jpg")],
+             "-frames:v", "1", "-vf", "scale=480:-2,format=yuvj420p", "-q:v", "4",
+             os.path.join(out_dir, f"frame_{rel:+03d}.jpg")],
             check=False,
         )
 
