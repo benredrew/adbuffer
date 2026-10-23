@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>adbuffer</title>
+<link rel="icon" href="/static/icon.svg">
+<link id="theme" rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header>
+  <span class="brand">adbuffer</span>
+  <div class="omni">
+    <span class="key">/</span>
+    <input id="omni" placeholder="Search YouTube or enter a URL" autocomplete="off" spellcheck="false">
+    <span class="hint">↵ watch clean · ⇧↵ open in Brave</span>
+  </div>
+  <nav id="tabs">
+    <a data-view="home"><span class="key">1</span>Home</a>
+    <a data-view="results"><span class="key">2</span>Results</a>
+    <a data-view="player"><span class="key">3</span>Player <span id="live-dot"></span></a>
+  </nav>
+</header>
+
+<main>
+  <section id="view-home" class="view">
+    <div class="sections">
+      <button data-section="bookmarks">Bookmarks</button>
+      <button data-section="history">History</button>
+      <span class="hint">Tab switches</span>
+    </div>
+    <ol id="home-list" class="list"></ol>
+  </section>
+
+  <section id="view-results" class="view">
+    <div class="sections"><span id="results-title" class="hint"></span></div>
+    <ol id="results-list" class="list results"></ol>
+  </section>
+
+  <section id="view-player" class="view">
+    <div class="stage">
+      <div class="video-wrap">
+        <video id="video" playsinline></video>
+        <div id="overlay" class="overlay"></div>
+      </div>
+      <div class="scrub">
+        <div id="scrub-track" class="track">
+          <div id="scrub-ads"></div>
+          <div id="scrub-played" class="played"></div>
+          <div id="scrub-head" class="head"></div>
+        </div>
+        <span id="scrub-time" class="scrub-time"></span>
+      </div>
+      <div class="meta">
+        <div id="np-title" class="np-title"></div>
+        <div id="np-status" class="np-status"></div>
+      </div>
+    </div>
+    <aside id="transcript">
+      <h2>Transcript</h2>
+      <div id="lines"></div>
+    </aside>
+  </section>
+</main>
+
+<footer id="keys"></footer>
+<div id="toast"></div>
+
+<div id="help" hidden>
+  <div class="help-card">
+    <h2>Keys</h2>
+    <dl>
+      <dt>/ &nbsp;o</dt><dd>Search or enter a URL</dd>
+      <dt>↵</dt><dd>Watch through adbuffer (ads softened)</dd>
+      <dt>⇧↵ &nbsp;b</dt><dd>Open in Brave instead</dd>
+      <dt>i k &nbsp;↑ ↓</dt><dd>Move up / down</dd>
+      <dt>I K &nbsp;PgUp PgDn</dt><dd>Move by a page</dd>
+      <dt>g G</dt><dd>First / last</dd>
+      <dt>j l</dt><dd>Back / forward (in the player: seek −10 / +10 s)</dd>
+      <dt>← →</dt><dd>Seek −5 / +5 s (with Shift: 30 s)</dd>
+      <dt>Home End</dt><dd>Oldest buffered point / back to live</dd>
+      <dt>Esc</dt><dd>Leave the player</dd>
+      <dt>1 2 3</dt><dd>Home / Results / Player</dd>
+      <dt>Tab</dt><dd>Bookmarks ⇄ History</dd>
+      <dt>a</dt><dd>Bookmark / unbookmark</dd>
+      <dt>d</dt><dd>Remove from list</dd>
+      <dt>y</dt><dd>Copy URL</dd>
+      <dt>Space</dt><dd>Play / pause</dd>
+      <dt>f m t</dt><dd>Fullscreen · mute · transcript</dd>
+      <dt>+ −</dt><dd>Volume</dd>
+      <dt>s</dt><dd>Stop the session</dd>
+      <dt>Super Alt Y</dt><dd>From Brave: send the current tab here</dd>
+    </dl>
+    <p class="hint">Esc closes</p>
+  </div>
+</div>
+
+<script src="/static/hls.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

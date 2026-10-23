@@ -1,0 +1,87 @@
+{
+ "id": "seed-warthunder-wordless",
+ "kind": "missed",
+ "source": "https://www.youtube.com/watch?v=U-QiUAMda7Y",
+ "note": "Sponsor lead-in caught, then a music-heavy War Thunder spot played clear (Whisper heard only filler).",
+ "origin": 1.4,
+ "horizon": 193.4,
+ "lines": [
+  {
+   "start": 127.1,
+   "end": 133.4,
+   "text": "You might have noticed we've come full circle back around directly under it where our hope is to repur-",
+   "noise": false,
+   "words": []
+  },
+  {
+   "start": 133.4,
+   "end": 139.3,
+   "text": "the cool air that we get off of our hot water heater into that closet to assist with cooling it.",
+   "noise": false,
+   "words": []
+  },
+  {
+   "start": 139.3,
+   "end": 143.9,
+   "text": "Obviously, they won't be able to do all of it, but it sure as heck won't hurt.",
+   "noise": false,
+   "words": []
+  },
+  {
+   "start": 143.9,
+   "end": 149.7,
+   "text": "Just like it never hurts to put on a bedazzled hardhat and tell you about our sponsor.",
+   "noise": false,
+   "words": []
+  },
+  {
+   "start": 153.4,
+   "end": 156,
+   "text": "Thanks for watching!",
+   "noise": true,
+   "words": []
+  },
+  {
+   "start": 163.4,
+   "end": 166,
+   "text": "Subscribe to my channel for more videos!",
+   "noise": true,
+   "words": []
+  },
+  {
+   "start": 175.2,
+   "end": 177,
+   "text": "Hey, did we decide what?",
+   "noise": false,
+   "words": []
+  },
+  {
+   "start": 183.4,
+   "end": 186.4,
+   "text": "Wall, we were going to put the potential TV mount on.",
+   "noise": false,
+   "words": []
+  },
+  {
+   "start": 186.4,
+   "end": 191,
+   "text": "I know there's a fundamental disagreement about where the bed goes in this room right now.",
+   "noise": false,
+   "words": []
+  }
+ ],
+ "expect": [
+  {
+   "t": 160.0,
+   "ad": true
+  },
+  {
+   "t": 138.0,
+   "ad": false
+  },
+  {
+   "t": 188.0,
+   "ad": false
+  }
+ ]
+}

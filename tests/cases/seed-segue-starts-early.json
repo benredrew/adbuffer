@@ -1,0 +1,270 @@
+{
+ "id": "seed-segue-starts-early",
+ "kind": "boundary",
+ "source": "https://www.youtube.com/watch?v=FH5SoaRx2TA",
+ "note": "Softening started at the start of a long Whisper segment instead of at the segue sentence.",
+ "origin": 1.4,
+ "horizon": 170,
+ "lines": [
+  {
+   "start": 140.4,
+   "end": 148.35,
+   "text": "And that's the deal you get with this box. It's not cheap. Which is the perfect segue to our sponsor.",
+   "noise": false,
+   "words": [
+    [
+     140.4,
+     140.75,
+     " And"
+    ],
+    [
+     140.8,
+     141.15,
+     " that's"
+    ],
+    [
+     141.2,
+     141.55,
+     " the"
+    ],
+    [
+     141.6,
+     141.95,
+     " deal"
+    ],
+    [
+     142.0,
+     142.35,
+     " you"
+    ],
+    [
+     142.4,
+     142.75,
+     " get"
+    ],
+    [
+     142.8,
+     143.15,
+     " with"
+    ],
+    [
+     143.2,
+     143.55,
+     " this"
+    ],
+    [
+     143.6,
+     143.95,
+     " box."
+    ],
+    [
+     144.0,
+     144.35,
+     " It's"
+    ],
+    [
+     144.4,
+     144.75,
+     " not"
+    ],
+    [
+     144.8,
+     145.15,
+     " cheap."
+    ],
+    [
+     145.2,
+     145.55,
+     " Which"
+    ],
+    [
+     145.6,
+     145.95,
+     " is"
+    ],
+    [
+     146.0,
+     146.35,
+     " the"
+    ],
+    [
+     146.4,
+     146.75,
+     " perfect"
+    ],
+    [
+     146.8,
+     147.15,
+     " segue"
+    ],
+    [
+     147.2,
+     147.55,
+     " to"
+    ],
+    [
+     147.6,
+     147.95,
+     " our"
+    ],
+    [
+     148.0,
+     148.35,
+     " sponsor."
+    ]
+   ]
+  },
+  {
+   "start": 147.5,
+   "end": 150.25,
+   "text": "Ridge wallets hold up to 12 cards.",
+   "noise": false,
+   "words": [
+    [
+     147.5,
+     147.85,
+     " Ridge"
+    ],
+    [
+     147.9,
+     148.25,
+     " wallets"
+    ],
+    [
+     148.3,
+     148.65,
+     " hold"
+    ],
+    [
+     148.7,
+     149.05,
+     " up"
+    ],
+    [
+     149.1,
+     149.45,
+     " to"
+    ],
+    [
+     149.5,
+     149.85,
+     " 12"
+    ],
+    [
+     149.9,
+     150.25,
+     " cards."
+    ]
+   ]
+  },
+  {
+   "start": 152.5,
+   "end": 156.45,
+   "text": "Use code LTT for 10% off at the link below.",
+   "noise": false,
+   "words": [
+    [
+     152.5,
+     152.85,
+     " Use"
+    ],
+    [
+     152.9,
+     153.25,
+     " code"
+    ],
+    [
+     153.3,
+     153.65,
+     " LTT"
+    ],
+    [
+     153.7,
+     154.05,
+     " for"
+    ],
+    [
+     154.1,
+     154.45,
+     " 10%"
+    ],
+    [
+     154.5,
+     154.85,
+     " off"
+    ],
+    [
+     154.9,
+     155.25,
+     " at"
+    ],
+    [
+     155.3,
+     155.65,
+     " the"
+    ],
+    [
+     155.7,
+     156.05,
+     " link"
+    ],
+    [
+     156.1,
+     156.45,
+     " below."
+    ]
+   ]
+  },
+  {
+   "start": 162,
+   "end": 163.95,
+   "text": "Anyway, back to the review.",
+   "noise": false,
+   "words": [
+    [
+     162.0,
+     162.35,
+     " Anyway,"
+    ],
+    [
+     162.4,
+     162.75,
+     " back"
+    ],
+    [
+     162.8,
+     163.15,
+     " to"
+    ],
+    [
+     163.2,
+     163.55,
+     " the"
+    ],
+    [
+     163.6,
+     163.95,
+     " review."
+    ]
+   ]
+  }
+ ],
+ "expect": [
+  {
+   "t": 141.5,
+   "ad": false
+  },
+  {
+   "t": 144.5,
+   "ad": false
+  },
+  {
+   "t": 150.0,
+   "ad": true
+  },
+  {
+   "t": 164.0,
+   "ad": false
+  }
+ ]
+}

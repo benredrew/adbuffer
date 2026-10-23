@@ -1,0 +1,10 @@
+#!/bin/bash
+# Called by the SUPER+ALT+Y binding after it has copied Brave's address bar
+# (Ctrl+L, Ctrl+C). Reads that URL from the clipboard and plays it through adbuffer.
+url=$(wl-paste --no-newline --type text 2>/dev/null | head -n1)
+if [[ ! $url =~ ^https?:// ]]; then
+  notify-send -a adbuffer "adbuffer" "No page URL found — focus a Brave tab and try again"
+  exec "$(dirname "$(readlink -f "$0")")/adbuffer-app"
+fi
+notify-send -a adbuffer -t 4000 "adbuffer" "Buffering ${url#*://} — ads will be softened"
+exec "$(dirname "$(readlink -f "$0")")/adbuffer-app" "$url"

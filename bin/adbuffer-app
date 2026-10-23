@@ -1,0 +1,27 @@
+#!/bin/bash
+# Open the adbuffer app window (Brave app mode), starting the daemon if needed.
+# With a URL argument, start watching it through adbuffer first.
+set -u
+port=${ADBUFFER_PORT:-8090}
+base="http://127.0.0.1:$port"
+
+if ! curl -fs -o /dev/null "$base/api/status"; then
+  systemctl --user start adbuffer.service
+  for _ in $(seq 50); do curl -fs -o /dev/null "$base/api/status" && break; sleep 0.2; done
+fi
+
+page="$base/"
+if [[ ${1:-} ]]; then
+  curl -fs -o /dev/null -X POST -H 'Content-Type: application/json' \
+    --data "$(jq -cn --arg u "$1" --arg t "${2:-}" '{url:$u,title:$t}')" "$base/api/watch" \
+    || notify-send -a adbuffer "adbuffer" "Couldn't start watching $1"
+  page="$base/#player"
+fi
+
+# Focus the existing app window if there is one (it switches to the player by itself), else open it.
+addr=$(hyprctl clients -j | jq -r '.[] | select(.class | test("^brave-127\\.0\\.0\\.1")) | .address' | head -n1)
+if [[ -n $addr ]]; then
+  hyprctl dispatch "hl.dsp.focus({ window = \"address:$addr\" })" >/dev/null 2>&1 || hyprctl dispatch focuswindow "address:$addr" >/dev/null
+else
+  exec omarchy-launch-webapp "$page"
+fi
