@@ -1,0 +1,12 @@
+[Unit]
+Description=adbuffer: ad-softening stream buffer
+After=network-online.target
+
+[Service]
+ExecStart=%h/adbuffer/.venv/bin/python -m adbuffer
+WorkingDirectory=%h/adbuffer
+Restart=on-failure
+EnvironmentFile=-%h/.config/adbuffer/env
+
+[Install]
+WantedBy=default.target

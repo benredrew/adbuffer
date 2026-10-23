@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Name=adbuffer
+GenericName=Ad-free stream player
+Comment=Watch YouTube, Twitch and live streams with ads and sponsor reads softened
+Exec=adbuffer-app
+Terminal=false
+Type=Application
+Icon=adbuffer
+Categories=AudioVideo;Video;Player;
+Keywords=youtube;twitch;stream;sponsor;ads;brave;
+StartupNotify=true

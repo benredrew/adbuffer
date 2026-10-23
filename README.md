@@ -5,6 +5,28 @@ re-serves it with those stretches softened: the picture eases into a dim blur wi
 "Ad muted" caption and the audio ducks to a quiet, muffled bed. Both fade back to the
 clear broadcast afterwards.
 
+## Install
+
+Needs Linux, Python 3.12+, `ffmpeg`, `yt-dlp` and `jq`. The desktop integration assumes
+[Omarchy](https://omarchy.org) (Hyprland), with Brave or another Chromium browser as the default.
+
+```sh
+git clone https://github.com/benredrew/adbuffer ~/adbuffer
+cd ~/adbuffer
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# background service (started on demand by the launcher)
+cp contrib/adbuffer.service ~/.config/systemd/user/ && systemctl --user daemon-reload
+
+# launcher, commands and keybindings
+cp contrib/adbuffer.desktop ~/.local/share/applications/
+ln -s ~/adbuffer/bin/adbuffer-app ~/adbuffer/bin/adbuffer-passthrough ~/.local/bin/
+cat contrib/hyprland-bindings.lua >> ~/.config/hypr/bindings.lua
+```
+
+The first run downloads the Whisper `small.en` model (about 500 MB). Reports (`r` in the player)
+use [Claude Code](https://claude.com/claude-code) if `claude` is on your PATH.
+
 ## Desktop app (Omarchy)
 
 - Open **adbuffer** from the launcher, or press **Super Ctrl Y**. It opens in a Brave app window and starts
