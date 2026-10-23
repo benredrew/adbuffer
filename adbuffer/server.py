@@ -144,6 +144,8 @@ def make_app(sessions: Sessions, library: Library, reporter: Reporter) -> web.Ap
         if body.get("kind") not in ("history", "bookmarks", "sources"):
             raise web.HTTPBadRequest()
         library.remove(body["kind"], body["url"])
+        if body["kind"] == "sources":
+            source_cache.forget(body["url"])
         return web.json_response({})
 
     async def open_url(request):
@@ -169,6 +171,7 @@ def make_app(sessions: Sessions, library: Library, reporter: Reporter) -> web.Ap
         if not url or os.path.exists(url):
             raise web.HTTPBadRequest(text="not a URL")
         library.add_source(url, body.get("name", "").strip())
+        source_cache.forget(url)  # re-adding a URL must check it afresh
         return web.json_response({"url": url})
 
     async def source_items(request):

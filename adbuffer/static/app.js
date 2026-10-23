@@ -44,6 +44,8 @@ const fmtAgo = (ts) => {
   return `${Math.round(d / 86400)}d ago`;
 };
 const host = (u) => { try { return new URL(u).host.replace(/^www\./, ''); } catch { return u; } };
+// unnamed sources are labelled by host and path, so two pages on one site stay distinguishable
+const sourceLabel = (x) => x.name || (() => { try { const u = new URL(x.url); return (u.host + u.pathname).replace(/^www\./, '').replace(/\/$/, ''); } catch { return x.url; } })();
 
 // ---------------------------------------------------------------- views
 
@@ -62,7 +64,9 @@ const SECTIONS = ['bookmarks', 'history', 'sources'];
 
 // Streams listed from the viewer's own sources, optionally narrowed to one source.
 function sourceItems() {
-  const all = S.listings.flatMap((l) => l.items);
+  // only sources that are still saved: a listing request can finish after a source was deleted
+  const saved = new Set(S.lib.sources.map((x) => x.url));
+  const all = S.listings.filter((l) => saved.has(l.source)).flatMap((l) => l.items);
   return S.filterSource ? all.filter((it) => it.source === S.filterSource) : all;
 }
 function matches(it, q) {
@@ -72,7 +76,7 @@ function matches(it, q) {
 
 function items(view = S.view) {
   if (view === 'home') {
-    if (S.section === 'sources') return S.lib.sources.map((x) => ({ url: x.url, title: x.name || host(x.url), ts: x.ts, isSource: true }));
+    if (S.section === 'sources') return S.lib.sources.map((x) => ({ url: x.url, title: sourceLabel(x), ts: x.ts, isSource: true }));
     return S.lib[S.section] || [];
   }
   if (view === 'results') return S.query ? [...sourceItems().filter((it) => matches(it, S.query)), ...S.results] : sourceItems();
@@ -87,8 +91,10 @@ function render() {
     history: 'Nothing watched yet. Press / to search.',
     sources: 'No sources yet. Press n to add a page that lists or embeds streams.',
   }[S.section]);
-  const failed = S.listings.filter((l) => l.error && (!S.filterSource || l.source === S.filterSource));
-  const named = S.filterSource && (S.lib.sources.find((x) => x.url === S.filterSource)?.name || host(S.filterSource));
+  const saved = new Set(S.lib.sources.map((x) => x.url));
+  const failed = S.listings.filter((l) => l.error && saved.has(l.source) && (!S.filterSource || l.source === S.filterSource));
+  const src = S.filterSource && S.lib.sources.find((x) => x.url === S.filterSource);
+  const named = src && sourceLabel(src);
   $('#results-title').textContent = (S.query
     ? `Results for “${S.query}”: your sources first, then YouTube`
     : `Live from ${named || 'your sources'}${S.loadingSources ? ' (checking…)' : ''}`)
@@ -211,6 +217,11 @@ async function toggleBookmark(it) {
 async function removeSelected() {
   const it = selected(); if (!it || S.view !== 'home') return;
   await api('/api/remove', { kind: S.section, url: it.url });
+  if (S.section === 'sources') {
+    S.listings = S.listings.filter((l) => l.source !== it.url);
+    if (S.filterSource === it.url) S.filterSource = null;
+    toast('Source removed');
+  }
   loadLibrary();
 }
 

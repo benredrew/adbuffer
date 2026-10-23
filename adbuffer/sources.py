@@ -156,7 +156,8 @@ def list_source(src: dict) -> dict:
     except Exception as e:
         items, error = [], str(e)[:200]
     for it in items:
-        it["channel"] = src.get("name") or urlparse(url).hostname
+        u = urlparse(url)
+        it["channel"] = src.get("name") or (u.netloc + u.path).removeprefix("www.").rstrip("/")
         it["source"] = url
     return {"source": url, "items": items, "error": error}
 
@@ -165,6 +166,9 @@ class SourceCache:
     def __init__(self):
         self.cache: dict[str, tuple[float, dict]] = {}
         self.pool = ThreadPoolExecutor(max_workers=6)
+
+    def forget(self, url: str):
+        self.cache.pop(url, None)
 
     def listings(self, sources: list[dict], refresh: bool = False) -> list[dict]:
         now = time.time()
