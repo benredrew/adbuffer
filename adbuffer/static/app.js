@@ -288,6 +288,8 @@ function renderPosition() {
     const l = S.rows[now], p = Math.max(0, Math.min(1, (pts - l.start) / Math.max(0.5, l.end - l.start)));
     S.rowEls[now].style.setProperty('--p', `${(p * 100).toFixed(1)}%`);
   }
+  $('#nowbar').innerHTML = pts == null || !s ? ''
+    : `▶ Now playing <b>${fmtDur(pts - s.origin)}</b>${now >= 0 && S.rows[now].ad ? ' · <b>ad (softened)</b>' : ''}`;
   if (now !== S.nowRow && now >= 0) S.rowEls[now].scrollIntoView({ block: 'center', behavior: 'smooth' });
   S.nowRow = now;
 
@@ -391,6 +393,7 @@ async function sendReport() {
 }
 function closeReport() { reportBox.hidden = true; reportNote.blur(); S.report = null; }
 reportBox.querySelectorAll('li').forEach((li) => li.addEventListener('click', () => chooseReport(li.dataset.kind)));
+$('#report-btn').addEventListener('click', (e) => { e.currentTarget.blur(); openReport(); });
 
 // ---------------------------------------------------------------- keys
 

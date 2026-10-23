@@ -74,17 +74,35 @@ video { max-width: 100%; max-height: 100%; }
 
 aside#transcript { width: 380px; border-left: 1px solid var(--muted); padding: 12px; overflow-y: auto; background: var(--dark-background); }
 body.no-transcript aside#transcript { display: none; }
-aside h2 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dark-foreground); }
+aside h2 { margin: 0 0 8px; position: sticky; top: -12px; background: var(--dark-background); padding-top: 12px; margin-top: -12px; z-index: 2; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dark-foreground); }
 .line { padding: 3px 6px; border-left: 3px solid transparent; border-radius: 3px; }
 .line.ad { border-left-color: var(--accent); }
 .line.future { opacity: .45; }
-/* playhead: the sentence on screen, filled left-to-right as it plays */
+/* playhead: the sentence on screen, with a bar filling as it plays */
 .line.now {
-  border-left-color: var(--foreground);
-  background: linear-gradient(to right, var(--selection) var(--p, 0%), transparent var(--p, 0%));
-  outline: 1px solid var(--muted); outline-offset: -1px;
+  position: relative; color: var(--foreground); font-weight: 600;
+  border-left: 4px solid var(--accent); background: var(--selection);
+  padding-bottom: 7px;
 }
-.line.now .t::before { content: "▶ "; color: var(--foreground); }
+.line.now::after {
+  content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: var(--p, 0%);
+  background: var(--accent); border-radius: 0 2px 2px 0;
+}
+.line.now .t::before { content: "▶ "; color: var(--accent); }
+.line.now .t { color: var(--accent); }
+.nowbar {
+  position: sticky; top: -12px; z-index: 1; margin: -12px -12px 8px; padding: 8px 12px;
+  background: var(--dark-background); border-bottom: 1px solid var(--muted);
+  font-size: 12px; color: var(--light-foreground);
+}
+.nowbar:empty { display: none; }
+.nowbar b { color: var(--accent); }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; cursor: pointer;
+  background: var(--lighter-background); border: 1px solid var(--muted); border-radius: 6px; white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); }
+.btn .key { margin: 0; }
 .line .t { color: var(--dark-foreground); margin-right: 6px; font-size: 12px; }
 .line .kind { color: var(--accent); font-size: 11px; margin-left: 6px; }
 

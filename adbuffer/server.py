@@ -61,7 +61,13 @@ def open_in_browser(url: str):
 
 def make_app(sessions: Sessions, library: Library, reporter: Reporter) -> web.Application:
     async def index(_):
-        return web.FileResponse(os.path.join(STATIC, "index.html"), headers={"Cache-Control": "no-cache"})
+        # versioned asset URLs: a plain reload doesn't revalidate scripts and stylesheets
+        with open(os.path.join(STATIC, "index.html")) as f:
+            html = f.read()
+        for name in ("app.js", "app.css", "hls.min.js"):
+            v = int(os.stat(os.path.join(STATIC, name)).st_mtime)
+            html = html.replace(f"/static/{name}", f"/static/{name}?v={v}")
+        return web.Response(text=html, content_type="text/html", headers={"Cache-Control": "no-cache"})
 
     async def theme(_):
         return web.Response(text=theme_css(), content_type="text/css", headers={"Cache-Control": "no-cache"})
